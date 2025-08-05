@@ -28,7 +28,7 @@ public class AuthController {
                 .secure(true)
                 .path("/auth/refresh-token")
                 .maxAge(7 * 24 * 60 * 60)
-                .sameSite("Strict")
+                .sameSite("None")
                 .build();
 
         response.addHeader("Set-Cookie", refreshCookie.toString());
@@ -50,7 +50,7 @@ public class AuthController {
                 .secure(true)
                 .path("/auth/refresh-token")
                 .maxAge(7 * 24 * 60 * 60)
-                .sameSite("Strict")
+                .sameSite("None")
                 .build();
 
         response.addHeader("Set-Cookie", refreshCookie.toString());
