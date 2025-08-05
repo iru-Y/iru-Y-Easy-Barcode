@@ -1,0 +1,117 @@
+<div class="container">
+  <div class="input-group">
+    <mat-form-field appearance="outline" class="quantity-field">
+      <mat-label>Quantidade</mat-label>
+      <input
+        matInput
+        type="number"
+        min="1"
+        [formControl]="countControl"
+        (blur)="countControl.markAsTouched()"
+      />
+      @if (countControl.hasError('min') && countControl.touched) {
+      <mat-error>Deve ser maior que 0</mat-error>
+      } @if (countControl.hasError('required') && countControl.touched) {
+      <mat-error>Quantidade é obrigatória</mat-error>
+      }
+    </mat-form-field>
+
+    <button
+      mat-icon-button
+      (click)="startScanner()"
+      aria-label="Recarregar scanner"
+      class="refresh-scan"
+      [disabled]="isSending"
+    >
+      <mat-icon style="color: white">refresh</mat-icon>
+    </button>
+  </div>
+
+  <div class="video-container">
+    <video #videoElement autoplay playsinline muted></video>
+  </div>
+
+  <button
+    mat-flat-button
+    (click)="openModal()"
+    [disabled]="scannedBarcodes.length === 0 || isSending"
+    aria-label="Enviar códigos escaneados"
+    class="send-codes"
+  >
+    Enviar códigos ({{ scannedBarcodes.length }})
+  </button>
+
+  <mat-form-field appearance="outline" class="manual-barcode-field">
+  <mat-label>Digite o código manualmente</mat-label>
+  <input
+    matInput
+    type="text"
+    placeholder="Ex: 7891234567890"
+    [(ngModel)]="manualBarcode"
+    (keyup.enter)="addManualBarcode()"
+  />
+  <button
+    mat-icon-button
+    matSuffix
+    aria-label="Adicionar código manual"
+    (click)="addManualBarcode()"
+  >
+    <mat-icon>add</mat-icon>
+  </button>
+</mat-form-field>
+</div>
+
+<ng-template #modalTemplate>
+ <div class="custom-modal-content">
+   <h3>Escolha o arquivo para salvar os códigos</h3>
+
+  <p>Arquivos existentes:</p>
+
+  <mat-radio-group
+    [(ngModel)]="selectedFilename"
+    aria-label="Arquivos existentes"
+    class="file-list"
+  >
+    @for (file of scannedFiles; track $index) {
+    <mat-radio-button [value]="file.filename" class="file-radio">
+      {{ file.filename }}
+    </mat-radio-button>
+    }
+  </mat-radio-group>
+
+  <p>Ou crie um arquivo novo:</p>
+  <mat-form-field appearance="outline" class="new-name-field">
+    <mat-label>Novo nome de arquivo (ex: produtos)</mat-label>
+    <input
+      matInput
+      type="text"
+      placeholder="Novo nome de arquivo"
+      [formControl]="newFilenameControl"
+    />
+    @if (newFilenameControl.invalid && newFilenameControl.touched) {
+    <mat-error>Nome do arquivo é obrigatório</mat-error>
+    }
+  </mat-form-field>
+
+  <div class="modal-buttons">
+    <button
+      mat-flat-button
+      color="primary"
+      (click)="confirmSend()"
+      [disabled]="isSending"
+    >
+      Confirmar envio
+    </button>
+    <button
+      mat-stroked-button
+      (click)="dialogRef.close()"
+      [disabled]="isSending"
+      class="cancel-btn"
+    >
+      Cancelar
+    </button>
+
+  </div>
+ </div>
+    
+</ng-template>

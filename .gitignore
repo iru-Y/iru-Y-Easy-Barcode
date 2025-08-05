@@ -1,0 +1,13 @@
+bar_code_mobile_scanner/barcode-scanner/ssl
+bar_code_mobile_scanner/barcode-scanner/certs
+bar_code_mobile_scanner/barcode-scanner/node_modules
+/barcode-scanner/node_modules
+/barcode-scanner/certs
+/barcode-scanner/ssl
+barcode-api/mvnw.cmd
+barcode-api/.idea
+barcode-api/target
+barcode-api/src/main/resources/application.properties
+barcode-typer-electron/node_modules
+barcode-api/src/main/resources/application-test.yml
+barcode-api/.env
