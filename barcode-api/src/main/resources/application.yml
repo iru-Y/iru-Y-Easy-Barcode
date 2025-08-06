@@ -2,4 +2,4 @@ spring:
   config:
     import: "optional:file:.env"
   profiles:
-    active: prod
+    active: test

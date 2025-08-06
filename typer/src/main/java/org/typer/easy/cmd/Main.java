@@ -41,7 +41,7 @@ public class Main {
                 System.exit(1);
             }
 
-            typer.digitarCodigos(selectedBarcodes);
+            typer.typeBarcodes(selectedBarcodes);
 
         } catch (IOException | InterruptedException | AWTException e) {
             System.err.println("Erro: " + e.getMessage());

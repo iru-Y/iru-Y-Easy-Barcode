@@ -1,36 +1,32 @@
 import { Component } from '@angular/core';
-import { Router } from '@angular/router';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { MatIcon } from '@angular/material/icon';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { RouterModule } from '@angular/router';
-import { ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { Router, RouterModule } from '@angular/router';
+import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { AuthService } from '../domain/services/auth.service';
 
 @Component({
   selector: 'app-login',
+  standalone: true,
   imports: [
-    RouterModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatButtonModule,
+    CommonModule,
     ReactiveFormsModule,
-    MatIcon,
-    MatCheckboxModule,
+    RouterModule,
+    NgOptimizedImage
   ],
   templateUrl: './login.component.html',
-  styleUrls: ['./login.component.css'],
-  standalone: true,
+  styleUrls: ['./login.component.css']
 })
 export class LoginComponent {
   loginForm: FormGroup;
   loading = false;
   errorMessage = '';
+  showPassword = false;
 
-  constructor(private fb: FormBuilder, private authService: AuthService, private router: Router) {
+  constructor(
+    private fb: FormBuilder,
+    private authService: AuthService,
+    private router: Router
+  ) {
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required]],
@@ -38,7 +34,11 @@ export class LoginComponent {
     });
   }
 
-  onSubmit() {
+  togglePasswordVisibility(): void {
+    this.showPassword = !this.showPassword;
+  }
+
+  onSubmit(): void {
     if (this.loginForm.invalid) return;
 
     this.loading = true;

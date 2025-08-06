@@ -1,8 +1,7 @@
 div {
-  padding: 20px;
-}
-div {
   background-color: var(--dark-color);
+    padding: 20px;
+  height: 100%;
 }
 
 p {
