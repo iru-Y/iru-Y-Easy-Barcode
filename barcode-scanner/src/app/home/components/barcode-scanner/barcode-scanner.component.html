@@ -1,117 +1,128 @@
 <div class="container">
   <div class="input-group">
-    <mat-form-field appearance="outline" class="quantity-field">
-      <mat-label>Quantidade</mat-label>
+    <!-- Quantidade (campo reativo) -->
+    <div class="form-field quantity-field">
+      <label for="count">Quantidade</label>
       <input
-        matInput
+        id="count"
         type="number"
         min="1"
         [formControl]="countControl"
         (blur)="countControl.markAsTouched()"
+        placeholder="1"
       />
-      @if (countControl.hasError('min') && countControl.touched) {
-      <mat-error>Deve ser maior que 0</mat-error>
-      } @if (countControl.hasError('required') && countControl.touched) {
-      <mat-error>Quantidade é obrigatória</mat-error>
-      }
-    </mat-form-field>
+      <div class="field-error" *ngIf="countControl.touched">
+        @if (countControl.hasError('min')) {
+        <div>Deve ser maior que 0</div>
+        } @if (countControl.hasError('required')) {
+        <div>Quantidade é obrigatória</div>
+        }
+      </div>
+    </div>
 
+    <!-- Botão refresh/scanner -->
     <button
-      mat-icon-button
+      class="icon-button refresh-scan"
       (click)="startScanner()"
       aria-label="Recarregar scanner"
-      class="refresh-scan"
       [disabled]="isSending"
+      title="Recarregar scanner"
     >
-      <mat-icon style="color: white">refresh</mat-icon>
+      🔄
     </button>
   </div>
 
+  <!-- Vídeo -->
   <div class="video-container">
     <video #videoElement autoplay playsinline muted></video>
+    <div class="scan-feedback">{{ scanFeedback }}</div>
   </div>
 
+  <!-- Enviar códigos -->
   <button
-    mat-flat-button
+    class="primary-btn send-codes"
     (click)="openModal()"
     [disabled]="scannedBarcodes.length === 0 || isSending"
     aria-label="Enviar códigos escaneados"
-    class="send-codes"
   >
     Enviar códigos ({{ scannedBarcodes.length }})
   </button>
 
-  <mat-form-field appearance="outline" class="manual-barcode-field">
-  <mat-label>Digite o código manualmente</mat-label>
-  <input
-    matInput
-    type="text"
-    placeholder="Ex: 7891234567890"
-    [(ngModel)]="manualBarcode"
-    (keyup.enter)="addManualBarcode()"
-  />
-  <button
-    mat-icon-button
-    matSuffix
-    aria-label="Adicionar código manual"
-    (click)="addManualBarcode()"
-  >
-    <mat-icon>add</mat-icon>
-  </button>
-</mat-form-field>
+  <!-- Inserir código manual -->
+  <div class="manual-barcode-field">
+    <label for="manualBarcode">Digite o código manualmente</label>
+    <div class="manual-input-row">
+      <input
+        id="manualBarcode"
+        type="text"
+        placeholder="Ex: 7891234567890"
+        [(ngModel)]="manualBarcode"
+        (keyup.enter)="addManualBarcode()"
+      />
+      <button
+        class="icon-button"
+        (click)="addManualBarcode()"
+        title="Adicionar código manual"
+      >
+        ➕
+      </button>
+    </div>
+  </div>
 </div>
 
-<ng-template #modalTemplate>
- <div class="custom-modal-content">
-   <h3>Escolha o arquivo para salvar os códigos</h3>
+<!-- Modal custom (overlay) -->
+<div class="overlay" *ngIf="showModal">
+  <div class="modal">
+    <h3>Escolha o arquivo para salvar os códigos</h3>
 
-  <p>Arquivos existentes:</p>
+    <p>Arquivos existentes:</p>
+    <div class="file-list">
+      @for (file of scannedFiles; track $index) {
+      <label class="file-radio">
+        <input
+          type="radio"
+          name="selectedFile"
+          [value]="file.filename"
+          [(ngModel)]="selectedFilename"
+        />
+        {{ file.filename }}
+      </label>
+      } @if (scannedFiles.length === 0) {
+      <div class="no-files">Nenhum arquivo encontrado</div>
+      }
 
-  <mat-radio-group
-    [(ngModel)]="selectedFilename"
-    aria-label="Arquivos existentes"
-    class="file-list"
-  >
-    @for (file of scannedFiles; track $index) {
-    <mat-radio-button [value]="file.filename" class="file-radio">
-      {{ file.filename }}
-    </mat-radio-button>
-    }
-  </mat-radio-group>
+    <p>Ou crie um arquivo novo:</p>
+    <div class="form-field new-name-field">
+      <label for="newFilename">Novo nome de arquivo (ex: produtos)</label>
+      <input
+        id="newFilename"
+        type="text"
+        placeholder="Novo nome de arquivo"
+        [formControl]="newFilenameControl"
+      />
 
-  <p>Ou crie um arquivo novo:</p>
-  <mat-form-field appearance="outline" class="new-name-field">
-    <mat-label>Novo nome de arquivo (ex: produtos)</mat-label>
-    <input
-      matInput
-      type="text"
-      placeholder="Novo nome de arquivo"
-      [formControl]="newFilenameControl"
-    />
-    @if (newFilenameControl.invalid && newFilenameControl.touched) {
-    <mat-error>Nome do arquivo é obrigatório</mat-error>
-    }
-  </mat-form-field>
+      @if (newFilenameControl.touched && newFilenameControl.invalid) {
+         <div
+        class="field-error"></div>
+      }
 
-  <div class="modal-buttons">
-    <button
-      mat-flat-button
-      color="primary"
-      (click)="confirmSend()"
-      [disabled]="isSending"
-    >
-      Confirmar envio
-    </button>
-    <button
-      mat-stroked-button
-      (click)="dialogRef.close()"
-      [disabled]="isSending"
-      class="cancel-btn"
-    >
-      Cancelar
-    </button>
+        @if (newFilenameControl.hasError('required')) {
+        <div>Nome do arquivo é obrigatório</div>
+        }
+      </div>
+    </div>
 
+    <div class="modal-buttons">
+      <button
+        class="primary-btn"
+        (click)="confirmSend()"
+        [disabled]="isSending"
+      >
+        Confirmar envio
+      </button>
+      <button class="ghost-btn" (click)="closeModal()" [disabled]="isSending">
+        Cancelar
+      </button>
+    </div>
   </div>
- </div>
-    
-</ng-template>
+</div>
