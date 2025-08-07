@@ -1,5 +1,3 @@
 spring:
-  config:
-    import: "optional:file:.env"
   profiles:
-    active: test
+    active: prod
