@@ -26,3 +26,5 @@ login:
   email: ${LOGIN_EMAIL}
   password: ${LOGIN_PASSWORD}
   role: ${LOGIN_ROLE}
+
+origin: ${ORIGIN}

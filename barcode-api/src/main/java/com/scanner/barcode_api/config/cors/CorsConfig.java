@@ -12,8 +12,8 @@ public class CorsConfig {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/**") // ← cobre todas as rotas
-                    .allowedOrigins("https://192.168.1.18:4200/")
+                registry.addMapping("/**") 
+                    .allowedOrigins("${origin}")
                     .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                     .allowedHeaders("*")
                     .exposedHeaders("Authorization", "Set-Cookie")
