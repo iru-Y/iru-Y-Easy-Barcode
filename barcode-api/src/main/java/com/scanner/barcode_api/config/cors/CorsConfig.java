@@ -12,13 +12,12 @@ public class CorsConfig {
     @Value("${origin}")
     private String origin;
 
-
     @Bean
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/**") 
+                registry.addMapping("/**")
                     .allowedOrigins(origin)
                     .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                     .allowedHeaders("*")

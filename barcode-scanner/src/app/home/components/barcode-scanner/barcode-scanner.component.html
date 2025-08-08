@@ -1,6 +1,5 @@
 <div class="container">
   <div class="input-group">
-    <!-- Quantidade (campo reativo) -->
     <div class="form-field quantity-field">
       <label for="count">Quantidade</label>
       <input
@@ -11,16 +10,17 @@
         (blur)="countControl.markAsTouched()"
         placeholder="1"
       />
-      <div class="field-error" *ngIf="countControl.touched">
+      @if (countControl.touched) {
+      <div class="field-error">
         @if (countControl.hasError('min')) {
         <div>Deve ser maior que 0</div>
         } @if (countControl.hasError('required')) {
         <div>Quantidade é obrigatória</div>
         }
       </div>
+      }
     </div>
 
-    <!-- Botão refresh/scanner -->
     <button
       class="icon-button refresh-scan"
       (click)="startScanner()"
@@ -28,17 +28,15 @@
       [disabled]="isSending"
       title="Recarregar scanner"
     >
-      🔄
+      <img ngSrc="/refresh.png" width="20" height="20" />
     </button>
   </div>
 
-  <!-- Vídeo -->
   <div class="video-container">
     <video #videoElement autoplay playsinline muted></video>
     <div class="scan-feedback">{{ scanFeedback }}</div>
   </div>
 
-  <!-- Enviar códigos -->
   <button
     class="primary-btn send-codes"
     (click)="openModal()"
@@ -48,10 +46,8 @@
     Enviar códigos ({{ scannedBarcodes.length }})
   </button>
 
-  <!-- Inserir código manual -->
   <div class="manual-barcode-field">
-    <label for="manualBarcode">Digite o código manualmente</label>
-    <div class="manual-input-row">
+    <div class="manual-input-wrapper">
       <input
         id="manualBarcode"
         type="text"
@@ -60,18 +56,17 @@
         (keyup.enter)="addManualBarcode()"
       />
       <button
-        class="icon-button"
+        class="icon-button inside-input"
         (click)="addManualBarcode()"
         title="Adicionar código manual"
       >
-        ➕
+        <img ngSrc="add.png" width="15" height="15" alt="" />
       </button>
     </div>
   </div>
 </div>
-
-<!-- Modal custom (overlay) -->
-<div class="overlay" *ngIf="showModal">
+@if (showModal) {
+<div class="overlay">
   <div class="modal">
     <h3>Escolha o arquivo para salvar os códigos</h3>
 
@@ -91,22 +86,19 @@
       <div class="no-files">Nenhum arquivo encontrado</div>
       }
 
-    <p>Ou crie um arquivo novo:</p>
-    <div class="form-field new-name-field">
-      <label for="newFilename">Novo nome de arquivo (ex: produtos)</label>
-      <input
-        id="newFilename"
-        type="text"
-        placeholder="Novo nome de arquivo"
-        [formControl]="newFilenameControl"
-      />
+      <p>Ou crie um arquivo novo:</p>
+      <div class="form-field new-name-field">
+        <label for="newFilename">Novo nome de arquivo (ex: produtos)</label>
+        <input
+          id="newFilename"
+          type="text"
+          placeholder="Novo nome de arquivo"
+          [formControl]="newFilenameControl"
+        />
 
-      @if (newFilenameControl.touched && newFilenameControl.invalid) {
-         <div
-        class="field-error"></div>
-      }
-
-        @if (newFilenameControl.hasError('required')) {
+        @if (newFilenameControl.touched && newFilenameControl.invalid) {
+        <div class="field-error"></div>
+        } @if (newFilenameControl.hasError('required')) {
         <div>Nome do arquivo é obrigatório</div>
         }
       </div>
@@ -126,3 +118,5 @@
     </div>
   </div>
 </div>
+
+}
