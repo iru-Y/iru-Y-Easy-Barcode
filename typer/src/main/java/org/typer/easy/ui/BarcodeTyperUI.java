@@ -1,6 +1,7 @@
 package org.typer.easy.ui;
 
 import org.typer.easy.core.BarcodeTyper;
+import org.typer.easy.core.TyperWebSocketServer;
 
 import javax.swing.*;
 import java.awt.*;
@@ -14,11 +15,16 @@ import java.util.Map;
 public class BarcodeTyperUI extends JFrame {
 
     private final JComboBox<String> fileDropdown = new JComboBox<>();
-    private final JButton startButton = new JButton("Start Typing");
+    private final JButton startButton = new JButton("Start");
     private final JTextArea logArea = new JTextArea(10, 40);
+    private final JRadioButton modeBatch = new JRadioButton("Modo Lote (API)");
+    private final JRadioButton modeRealtime = new JRadioButton("Tempo Real (WebSocket)");
 
     private List<Map<String, Object>> apiResponse;
-    private final BarcodeTyper barcodeTyper = new BarcodeTyper();
+    private BarcodeTyper barcodeTyper;
+    private TyperWebSocketServer wsServer;
+
+    private static final int WS_PORT = 8025;
     private static final String API_URL = "http://localhost:8080/barcode";
 
     public BarcodeTyperUI() {
@@ -26,6 +32,21 @@ public class BarcodeTyperUI extends JFrame {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
         setResizable(false);
+
+        try {
+            barcodeTyper = new BarcodeTyper();
+        } catch (AWTException e) {
+            JOptionPane.showMessageDialog(this, "Erro ao inicializar Robot: " + e.getMessage());
+            System.exit(1);
+        }
+
+        JPanel modePanel = new JPanel(new GridLayout(1, 2));
+        ButtonGroup modeGroup = new ButtonGroup();
+        modeGroup.add(modeBatch);
+        modeGroup.add(modeRealtime);
+        modeBatch.setSelected(true);
+        modePanel.add(modeBatch);
+        modePanel.add(modeRealtime);
 
         JPanel topPanel = new JPanel(new BorderLayout(5, 5));
         topPanel.add(new JLabel("Select file:"), BorderLayout.WEST);
@@ -37,8 +58,9 @@ public class BarcodeTyperUI extends JFrame {
         logArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
         logArea.setLineWrap(true);
 
-        add(topPanel, BorderLayout.NORTH);
-        add(logScroll, BorderLayout.CENTER);
+        add(modePanel, BorderLayout.NORTH);
+        add(topPanel, BorderLayout.CENTER);
+        add(logScroll, BorderLayout.SOUTH);
 
         pack();
         setLocationRelativeTo(null);
@@ -49,7 +71,7 @@ public class BarcodeTyperUI extends JFrame {
         startButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                handleStartTyping();
+                handleStart();
             }
         });
     }
@@ -57,46 +79,67 @@ public class BarcodeTyperUI extends JFrame {
     private void loadApiData() {
         try {
             apiResponse = barcodeTyper.fetchBarcodesFromApi(API_URL);
+            fileDropdown.removeAllItems();
             if (apiResponse.isEmpty()) {
                 log("No files found from API.");
                 startButton.setEnabled(false);
                 return;
             }
-
             for (Map<String, Object> item : apiResponse) {
                 fileDropdown.addItem((String) item.get("filename"));
             }
-
             log("Data loaded successfully.");
-
         } catch (IOException | InterruptedException ex) {
             log("Error fetching data from API: " + ex.getMessage());
             startButton.setEnabled(false);
         }
     }
 
-    private void handleStartTyping() {
-        String selectedFile = (String) fileDropdown.getSelectedItem();
-        List<String> barcodes = apiResponse.stream()
-                .filter(item -> selectedFile.equals(item.get("filename")))
-                .findFirst()
-                .map(item -> (List<String>) item.get("barcodes"))
-                .orElse(null);
-
-        if (barcodes == null || barcodes.isEmpty()) {
-            log("No barcodes found for selected file.");
-            return;
-        }
-
-        log("Typing will start in 5 seconds...");
-        new Thread(() -> {
-            try {
-                barcodeTyper.typeBarcodes(barcodes);
-                log("Typing completed.");
-            } catch (AWTException | InterruptedException ex) {
-                log("Error during typing: " + ex.getMessage());
+    private void handleStart() {
+        if (modeRealtime.isSelected()) {
+            if (wsServer != null && wsServer.isRunning()) {
+                log("WebSocket server já está rodando.");
+                return;
             }
-        }).start();
+
+            wsServer = new TyperWebSocketServer(WS_PORT, barcodeTyper);
+            wsServer.start();
+            log("WebSocket server iniciado na porta " + WS_PORT);
+        } else {
+            if (wsServer != null) {
+                try {
+                    wsServer.stop();
+                    log("WebSocket server parado.");
+                } catch (InterruptedException ex) {
+                    log("Erro ao parar WebSocket server: " + ex.getMessage());
+                }
+                wsServer = null;
+            }
+
+            log("Modo Batch iniciado...");
+            String selectedFile = (String) fileDropdown.getSelectedItem();
+            List<String> barcodes = apiResponse.stream()
+                    .filter(item -> selectedFile.equals(item.get("filename")))
+                    .findFirst()
+                    .map(item -> (List<String>) item.get("barcodes"))
+                    .orElse(null);
+
+            if (barcodes == null || barcodes.isEmpty()) {
+                log("Nenhum barcode encontrado para o arquivo selecionado.");
+                return;
+            }
+
+            new Thread(() -> {
+                try {
+                    log("Começando a digitar em 5 segundos...");
+                    Thread.sleep(5000);
+                    barcodeTyper.typeBarcodes(barcodes);
+                    log("Digitação concluída.");
+                } catch (InterruptedException ex) {
+                    log("Erro durante a digitação: " + ex.getMessage());
+                }
+            }).start();
+        }
     }
 
     private void log(String message) {

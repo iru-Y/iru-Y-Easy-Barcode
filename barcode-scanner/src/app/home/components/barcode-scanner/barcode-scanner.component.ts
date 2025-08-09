@@ -15,6 +15,8 @@ import {
 } from '@zxing/library';
 import { BarcodeService } from '../../../domain/services/barcode.service';
 import { AlertService } from '../../../domain/services/alert.services';
+import { ActivatedRoute } from '@angular/router';
+import { WebSocketService } from '../../../domain/services/web-socket.service';
 
 interface ExtendedMediaTrackConstraintSet extends MediaTrackConstraintSet {
   focusMode?: 'none' | 'manual' | 'single-shot' | 'continuous';
@@ -31,7 +33,9 @@ interface ExtendedMediaTrackCapabilities extends MediaTrackCapabilities {
   templateUrl: './barcode-scanner.component.html',
   styleUrls: ['./barcode-scanner.component.css'],
 })
-export class BarcodeScannerComponent implements OnInit, AfterViewInit, OnDestroy {
+export class BarcodeScannerComponent
+  implements OnInit, AfterViewInit, OnDestroy
+{
   @ViewChild('videoElement') videoElement!: ElementRef<HTMLVideoElement>;
 
   countControl = new FormControl('', [Validators.required, Validators.min(1)]);
@@ -39,8 +43,6 @@ export class BarcodeScannerComponent implements OnInit, AfterViewInit, OnDestroy
 
   desiredCount: number | null = null;
   isSending = false;
-  isTorchOn = false;
-  torchAvailable = false;
   scanFeedback = '';
 
   private codeReader = new BrowserMultiFormatReader();
@@ -53,9 +55,14 @@ export class BarcodeScannerComponent implements OnInit, AfterViewInit, OnDestroy
 
   showModal = false;
 
+  batchModeEnabled = false;
+  realtimeModeEnabled = false;
+
   constructor(
     private barcodeService: BarcodeService,
-    private alertService: AlertService
+    private alertService: AlertService,
+    private route: ActivatedRoute,
+    private wsService: WebSocketService
   ) {}
 
   ngOnInit(): void {
@@ -65,6 +72,17 @@ export class BarcodeScannerComponent implements OnInit, AfterViewInit, OnDestroy
     });
 
     this.loadScannedFiles();
+
+    this.route.queryParams.subscribe((params) => {
+      this.batchModeEnabled =
+        params['batch'] === 'true' || params['batch'] === true;
+      this.realtimeModeEnabled =
+        params['realtime'] === 'true' || params['realtime'] === true;
+
+      if (this.realtimeModeEnabled) {
+        this.connectWebSocket();
+      }
+    });
   }
 
   addManualBarcode(): void {
@@ -93,7 +111,9 @@ export class BarcodeScannerComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   ngAfterViewInit(): void {
-    this.startScanner();
+    if (this.batchModeEnabled) {
+      this.startScanner();
+    }
   }
 
   async startScanner(): Promise<void> {
@@ -113,12 +133,6 @@ export class BarcodeScannerComponent implements OnInit, AfterViewInit, OnDestroy
 
       this.videoElement.nativeElement.srcObject = this.stream;
 
-      const track = this.stream.getVideoTracks()[0];
-      const capabilities = track.getCapabilities() as ExtendedMediaTrackCapabilities;
-      if (capabilities.torch) {
-        this.torchAvailable = true;
-      }
-
       const hints = new Map<any, any>();
       hints.set(DecodeHintType.TRY_HARDER, true);
       hints.set(DecodeHintType.POSSIBLE_FORMATS, [
@@ -132,34 +146,37 @@ export class BarcodeScannerComponent implements OnInit, AfterViewInit, OnDestroy
 
       (this.codeReader as any).hints = hints;
 
-      this.codeReader.decodeFromVideoDevice(
-        null,
-        this.videoElement.nativeElement,
-        (result: Result | undefined, error: any) => {
-          if (result) {
-            this.onDetect(result);
-          } else if (error) {
-            this.handleScanError(error);
+      this.codeReader
+        .decodeFromVideoDevice(
+          null,
+          this.videoElement.nativeElement,
+          (result: Result | undefined, error: any) => {
+            if (result) {
+              this.onDetect(result);
+            }
           }
-        }
-      ).catch((err: any) => {
-        console.error('Erro ao acessar a câmera:', err);
-        this.alertService.show('Erro ao acessar a câmera. Verifique as permissões.');
-      });
-
-      this.enableAutoFocus();
+        )
+        .catch((err: any) => {
+          console.error('Erro ao acessar a câmera:', err);
+          this.alertService.show(
+            'Erro ao acessar a câmera. Verifique as permissões.'
+          );
+        });
     } catch (err) {
       console.error('Erro ao iniciar o scanner:', err);
       this.alertService.show('Erro ao iniciar a câmera.');
     }
   }
 
-  handleScanError(error: any): void {
-    if (error?.message?.includes('Failed to decode')) {
-      this.scanFeedback = 'Código de barras difícil de ler. Ajuste a distância ou iluminação.';
-    } else {
-      this.scanFeedback = 'Aguardando leitura de código de barras...';
-    }
+  connectWebSocket() {
+    this.wsService.connect('ws://localhost:8025/typer');
+    this.wsService.messages$.subscribe((code) => {
+      if (!this.scannedBarcodes.includes(code)) {
+        this.scannedBarcodes.push(code);
+        this.alertService.show(`Código recebido via WebSocket: ${code}`);
+        this.barcodeService.setLastScannedBarcode(code);
+      }
+    });
   }
 
   onDetect(result: Result): void {
@@ -173,19 +190,10 @@ export class BarcodeScannerComponent implements OnInit, AfterViewInit, OnDestroy
     this.scanFeedback = `Código escaneado: ${raw}`;
     this.alertService.show(`Código escaneado: ${raw}`);
     this.barcodeService.setLastScannedBarcode(raw);
-  }
 
-  enableAutoFocus(): void {
-    if (!this.stream) return;
-    const track = this.stream.getVideoTracks()[0];
-    const capabilities = track.getCapabilities() as ExtendedMediaTrackCapabilities;
-    if ('focusMode' in capabilities) {
-      track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as any] }).catch((err) => {
-        console.warn('Autofocus não suportado:', err);
-      });
-    } else {
-      console.warn('focusMode não suportado neste dispositivo.');
-    }
+     if (this.realtimeModeEnabled) {
+    this.wsService.sendMessage(raw); 
+  }
   }
 
   openModal() {
@@ -218,7 +226,9 @@ export class BarcodeScannerComponent implements OnInit, AfterViewInit, OnDestroy
 
     try {
       await this.barcodeService.sendBarcode(filenameToSend, expandedBarcodes);
-      this.alertService.show(`📦 Barcodes enviados para arquivo: ${filenameToSend}`);
+      this.alertService.show(
+        `📦 Barcodes enviados para arquivo: ${filenameToSend}`
+      );
       this.scannedBarcodes = [];
       this.countControl.setValue('');
       this.countControl.markAsUntouched();
@@ -239,5 +249,6 @@ export class BarcodeScannerComponent implements OnInit, AfterViewInit, OnDestroy
     if (this.stream) {
       this.stream.getTracks().forEach((track) => track.stop());
     }
+    this.wsService.close();
   }
 }

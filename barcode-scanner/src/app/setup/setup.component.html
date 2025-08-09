@@ -1,5 +1,20 @@
-<body>
+<h2>Configuração do Scanner</h2>
 
-    
+<form (submit)="onConfirm(); $event.preventDefault()">
 
-</body>
+  <label>
+    <input type="checkbox" (change)="onBatchChange($event)" />
+    Enviar em Lote (API)
+  </label>
+  <br />
+
+  <label>
+    <input type="checkbox" (change)="onRealtimeChange($event)" />
+    Ler em Tempo Real (WebSocket)
+  </label>
+  <br /><br />
+
+  <button type="submit">Confirmar</button>
+</form>
+
+<app-footer-nav></app-footer-nav>

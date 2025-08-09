@@ -65,8 +65,5 @@ export class BarcodeService {
   this.barcodesSubject.next(updated);
 }
 
-  typeBarcode(code: string): Observable<void> {
-  return this.http.post<void>(`${environment.apiUrl}/typer/type`, { code });
-}
 
 }

@@ -22,6 +22,7 @@ import { LoginComponent } from './login/login.component';
 import { ScanListComponent } from './scan-list/scan-list.component';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { SetupComponent } from './setup/setup.component';
+import { BarcodeScannerComponent } from './home/components/barcode-scanner/barcode-scanner.component';
 export const routes = [
   { path: '', component: LoginComponent },
   { path: 'home', component: HomeComponent },

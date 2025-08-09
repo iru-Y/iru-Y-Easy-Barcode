@@ -12,6 +12,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class BarcodeTyper {
 
+    private final Robot robot;
+
+    public BarcodeTyper() throws AWTException {
+        this.robot = new Robot();
+    }
+
     public List<Map<String, Object>> fetchBarcodesFromApi(String apiUrl) throws IOException, InterruptedException {
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder(URI.create(apiUrl)).GET().build();
@@ -25,50 +31,25 @@ public class BarcodeTyper {
         return mapper.readValue(response.body(), new TypeReference<List<Map<String, Object>>>() {});
     }
 
-    public String selectFilename(List<String> filenames) {
-        try (var scanner = new java.util.Scanner(System.in)) {
-            int selectedIndex = 0;
-            while (true) {
-                System.out.println("\nSelect a file using the number and press Enter:");
-                for (int i = 0; i < filenames.size(); i++) {
-                    String prefix = (i == selectedIndex) ? ">" : " ";
-                    System.out.printf("%s %d: %s%n", prefix, i + 1, filenames.get(i));
-                }
-                System.out.print("Enter the file number: ");
-                try {
-                    int choice = Integer.parseInt(scanner.nextLine()) - 1;
-                    if (choice >= 0 && choice < filenames.size()) {
-                        selectedIndex = choice;
-                        break;
-                    }
-                } catch (NumberFormatException ignored) {}
-                System.out.println("Invalid input, try again.");
-            }
-            System.out.println("Selected file: " + filenames.get(selectedIndex));
-            return filenames.get(selectedIndex);
-        }
-    }
-
-    public void typeBarcodes(List<String> barcodes) throws AWTException, InterruptedException {
-        Robot robot = new Robot();
-        System.out.println("Place the cursor in the input field. Starting in 5 seconds...");
+    public void typeBarcodes(List<String> barcodes) throws InterruptedException {
+        System.out.println("Posicione o cursor no campo de texto. Iniciando em 5 segundos...");
         Thread.sleep(5000);
 
         for (String barcode : barcodes) {
-            typeString(robot, barcode);
-            pressEnter(robot);
+            typeString(barcode);
+            pressEnter();
             Thread.sleep(1000);
         }
     }
 
-    private void typeString(Robot robot, String text) {
+    public void typeString(String text) {
         for (char c : text.toCharArray()) {
-            typeChar(robot, c);
+            typeChar(c);
             robot.delay(50);
         }
     }
 
-    private void typeChar(Robot robot, char character) {
+    public void typeChar(char character) {
         boolean isUpperCase = Character.isUpperCase(character);
         int keyCode = KeyEvent.getExtendedKeyCodeForChar(character);
 
@@ -77,19 +58,13 @@ public class BarcodeTyper {
             return;
         }
 
-        if (isUpperCase) {
-            robot.keyPress(KeyEvent.VK_SHIFT);
-        }
-
+        if (isUpperCase) robot.keyPress(KeyEvent.VK_SHIFT);
         robot.keyPress(keyCode);
         robot.keyRelease(keyCode);
-
-        if (isUpperCase) {
-            robot.keyRelease(KeyEvent.VK_SHIFT);
-        }
+        if (isUpperCase) robot.keyRelease(KeyEvent.VK_SHIFT);
     }
 
-    private void pressEnter(Robot robot) {
+    public void pressEnter() {
         robot.keyPress(KeyEvent.VK_ENTER);
         robot.keyRelease(KeyEvent.VK_ENTER);
     }
