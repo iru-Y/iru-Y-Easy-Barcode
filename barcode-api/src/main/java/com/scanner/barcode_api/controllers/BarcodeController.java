@@ -7,8 +7,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.awt.*;
 import java.io.IOException;
 import java.util.*;
+import java.util.List;
 
 @RestController
 @RequestMapping("/barcode")
@@ -70,6 +72,23 @@ public class BarcodeController {
             return ResponseEntity.noContent().build();
         } else {
             return ResponseEntity.status(404).body(Map.of("error", "Arquivo não encontrado ou falha ao deletar"));
+        }
+    }
+
+    @PostMapping("/type")
+    public ResponseEntity<?> typeBarcode(@RequestBody Map<String, String> payload) {
+        String code = payload.get("code");
+        if (code == null || code.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Código não pode ser vazio"));
+        }
+        try {
+            // Digitar o código recebido em tempo real
+            barcodeTyper.typeBarcodes(List.of(code));
+            log.info("Digitado código em tempo real: {}", code);
+            return ResponseEntity.ok().build();
+        } catch (AWTException | InterruptedException | IOException e) {
+            log.error("Erro ao digitar código em tempo real", e);
+            return ResponseEntity.status(500).body(Map.of("error", "Erro interno ao digitar"));
         }
     }
 

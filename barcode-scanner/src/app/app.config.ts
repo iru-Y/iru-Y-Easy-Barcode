@@ -21,11 +21,12 @@ import { HomeComponent } from './home/home.component';
 import { LoginComponent } from './login/login.component';
 import { ScanListComponent } from './scan-list/scan-list.component';
 import { provideAnimations } from '@angular/platform-browser/animations';
+import { SetupComponent } from './setup/setup.component';
 export const routes = [
   { path: '', component: LoginComponent },
   { path: 'home', component: HomeComponent },
   { path: 'files', component: ScanListComponent }, // temporário
-  { path: 'cloud', component: LoginComponent },
+  { path: 'setup', component: SetupComponent },
   { path: 'profile', component: LoginComponent },
 ];
 
