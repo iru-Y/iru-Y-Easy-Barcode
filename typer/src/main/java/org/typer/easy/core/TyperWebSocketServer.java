@@ -9,7 +9,7 @@ import java.io.IOException;
 
 public class TyperWebSocketServer extends WebSocketServer {
 
-    private BarcodeTyper barcodeTyper;
+    private final BarcodeTyper barcodeTyper;
     private boolean running = false;
 
     public TyperWebSocketServer(int port, BarcodeTyper barcodeTyper) {

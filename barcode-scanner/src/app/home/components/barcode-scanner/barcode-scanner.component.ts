@@ -7,7 +7,12 @@ import {
   OnDestroy,
 } from '@angular/core';
 import { CommonModule, NgOptimizedImage } from '@angular/common';
-import { FormControl, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
+import {
+  FormControl,
+  Validators,
+  ReactiveFormsModule,
+  FormsModule,
+} from '@angular/forms';
 import {
   BrowserMultiFormatReader,
   Result,
@@ -33,9 +38,7 @@ interface ExtendedMediaTrackCapabilities extends MediaTrackCapabilities {
   templateUrl: './barcode-scanner.component.html',
   styleUrls: ['./barcode-scanner.component.css'],
 })
-export class BarcodeScannerComponent
-  implements OnInit, AfterViewInit, OnDestroy
-{
+export class BarcodeScannerComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('videoElement') videoElement!: ElementRef<HTMLVideoElement>;
 
   countControl = new FormControl('', [Validators.required, Validators.min(1)]);
@@ -58,6 +61,8 @@ export class BarcodeScannerComponent
   batchModeEnabled = false;
   realtimeModeEnabled = false;
 
+  private audioCtx!: AudioContext;
+
   constructor(
     private barcodeService: BarcodeService,
     private alertService: AlertService,
@@ -66,6 +71,8 @@ export class BarcodeScannerComponent
   ) {}
 
   ngOnInit(): void {
+    this.audioCtx = new AudioContext();
+
     this.countControl.valueChanges.subscribe((value) => {
       const num = parseInt(value || '', 10);
       this.desiredCount = isNaN(num) || num < 1 ? null : num;
@@ -95,10 +102,14 @@ export class BarcodeScannerComponent
       this.alertService.show('Esse código já foi escaneado ou inserido.');
       return;
     }
-    this.scannedBarcodes.push(code);
+    if (this.batchModeEnabled) this.scannedBarcodes.push(code);
     this.alertService.show(`Código manual adicionado: ${code}`);
     this.barcodeService.setLastScannedBarcode(code);
     this.manualBarcode = '';
+
+    if (this.realtimeModeEnabled) {
+      this.wsService.sendMessage(code);
+    }
   }
 
   async loadScannedFiles() {
@@ -179,6 +190,25 @@ export class BarcodeScannerComponent
     });
   }
 
+  playBeep() {
+    if (this.audioCtx.state === 'suspended') {
+      this.audioCtx.resume();
+    }
+
+    const oscillator = this.audioCtx.createOscillator();
+    const gainNode = this.audioCtx.createGain();
+
+    oscillator.type = 'square';
+    oscillator.frequency.setValueAtTime(1000, this.audioCtx.currentTime);
+    gainNode.gain.setValueAtTime(0.4, this.audioCtx.currentTime);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(this.audioCtx.destination);
+
+    oscillator.start();
+    oscillator.stop(this.audioCtx.currentTime + 0.1); // 100ms beep
+  }
+
   onDetect(result: Result): void {
     const raw = result.getText().trim();
     if (!raw) return;
@@ -186,14 +216,17 @@ export class BarcodeScannerComponent
       this.scanFeedback = 'Código já escaneado. Tente outro.';
       return;
     }
-    this.scannedBarcodes.push(raw);
+    if (this.batchModeEnabled) this.scannedBarcodes.push(raw);
+
     this.scanFeedback = `Código escaneado: ${raw}`;
-    this.alertService.show(`Código escaneado: ${raw}`);
+
+    this.playBeep();
+
     this.barcodeService.setLastScannedBarcode(raw);
 
-     if (this.realtimeModeEnabled) {
-    this.wsService.sendMessage(raw); 
-  }
+    if (this.realtimeModeEnabled) {
+      this.wsService.sendMessage(raw);
+    }
   }
 
   openModal() {

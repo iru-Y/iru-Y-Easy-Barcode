@@ -1,20 +1,29 @@
-<h2>Configuração do Scanner</h2>
+<body>
+  
+<h2>Modo de Scanner</h2>
+<p>Escolha entre scanner em tempo real ou processamento em lotes</p>
 
-<form (submit)="onConfirm(); $event.preventDefault()">
-
-  <label>
-    <input type="checkbox" (change)="onBatchChange($event)" />
-    Enviar em Lote (API)
+<div class="switch-container">
+  <label class="switch">
+    <input type="checkbox" [(ngModel)]="realtimeMode" (ngModelChange)="onRealtimeChange()">
+    <span class="slider"></span>
+    <div class="switch-text">
+      <div class="title">Tempo Real</div>
+      <div class="description">Scanner contínuo e instantâneo</div>
+    </div>
   </label>
-  <br />
 
-  <label>
-    <input type="checkbox" (change)="onRealtimeChange($event)" />
-    Ler em Tempo Real (WebSocket)
+  <label class="switch">
+    <input type="checkbox" [(ngModel)]="batchMode" (ngModelChange)="onBatchChange()">
+    <span class="slider"></span>
+    <div class="switch-text">
+      <div class="title">Em Lotes</div>
+      <div class="description">Processamento agrupado</div>
+    </div>
   </label>
-  <br /><br />
-
-  <button type="submit">Confirmar</button>
-</form>
+</div>
 
 <app-footer-nav></app-footer-nav>
+
+
+</body>
