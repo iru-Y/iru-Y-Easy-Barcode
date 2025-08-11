@@ -23,12 +23,13 @@ import { ScanListComponent } from './scan-list/scan-list.component';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { SetupComponent } from './setup/setup.component';
 import { BarcodeScannerComponent } from './home/components/barcode-scanner/barcode-scanner.component';
+import { UserComponent } from './user/user';
 export const routes = [
   { path: '', component: LoginComponent },
   { path: 'home', component: HomeComponent },
   { path: 'files', component: ScanListComponent }, // temporário
   { path: 'setup', component: SetupComponent },
-  { path: 'profile', component: LoginComponent },
+  { path: 'profile', component: UserComponent },
 ];
 
 export const appConfig: ApplicationConfig = {

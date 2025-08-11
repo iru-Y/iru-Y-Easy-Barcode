@@ -1,0 +1,82 @@
+<section>
+  <div class="title">
+    <h1>EASY SCAN</h1>
+    <p>Atualize sua senha</p>
+  </div>
+
+  <div class="login-container">
+    <form [formGroup]="passwordForm" (ngSubmit)="onSubmit()">
+      <div class="form-field">
+        <label for="currentPassword">Senha Atual</label>
+        <div class="input-icon-wrapper">
+          <input
+            id="currentPassword"
+            [type]="showPassword ? 'text' : 'password'"
+            formControlName="currentPassword"
+            placeholder="Digite sua senha atual"
+            required
+          />
+          <img
+            class="icon"
+            ngSrc="/eye-icon.png"
+            width="20"
+            height="20"
+            (click)="togglePasswordVisibility()"
+            style="cursor: pointer;"
+            alt="Toggle password visibility"
+          />
+        </div>
+      </div>
+
+      <div class="form-field">
+        <label for="newPassword">Nova Senha</label>
+        <div class="input-icon-wrapper">
+          <input
+            id="newPassword"
+            [type]="showPassword ? 'text' : 'password'"
+            formControlName="newPassword"
+            placeholder="Digite a nova senha"
+            required
+          />
+          <img
+            class="icon"
+            ngSrc="/eye-icon.png"
+            width="20"
+            height="20"
+            (click)="togglePasswordVisibility()"
+            style="cursor: pointer;"
+            alt="Toggle password visibility"
+          />
+        </div>
+      </div>
+
+      <div class="form-field">
+        <label for="confirmPassword">Confirmar Nova Senha</label>
+        <div class="input-icon-wrapper">
+          <input
+            id="confirmPassword"
+            [type]="showPassword ? 'text' : 'password'"
+            formControlName="confirmPassword"
+            placeholder="Confirme a nova senha"
+            required
+          />
+          <img
+            class="icon"
+            ngSrc="/eye-icon.png"
+            width="20"
+            height="20"
+            (click)="togglePasswordVisibility()"
+            style="cursor: pointer;"
+            alt="Toggle password visibility"
+          />
+        </div>
+      </div>
+
+      <button type="submit" [disabled]="passwordForm.invalid" class="submit-btn">
+        Atualizar Senha
+      </button>
+    </form>
+  </div>
+</section>
+
+<app-footer-nav></app-footer-nav>
