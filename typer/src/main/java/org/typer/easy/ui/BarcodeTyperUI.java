@@ -33,6 +33,15 @@ public class BarcodeTyperUI extends JFrame {
         setLayout(new BorderLayout(10, 10));
         setResizable(false);
 
+        if (LoginUI.jwtToken == null || LoginUI.jwtToken.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Você precisa fazer login primeiro!",
+                    "Erro de autenticação",
+                    JOptionPane.ERROR_MESSAGE);
+            dispose();
+            return;
+        }
+
         try {
             barcodeTyper = new BarcodeTyper();
         } catch (AWTException e) {
@@ -81,21 +90,26 @@ public class BarcodeTyperUI extends JFrame {
             apiResponse = barcodeTyper.fetchBarcodesFromApi(API_URL);
             fileDropdown.removeAllItems();
             if (apiResponse.isEmpty()) {
-                log("No files found from API.");
+                log("Nenhum arquivo retornado da API.");
                 startButton.setEnabled(false);
                 return;
             }
             for (Map<String, Object> item : apiResponse) {
                 fileDropdown.addItem((String) item.get("filename"));
             }
-            log("Data loaded successfully.");
+            log("Dados carregados com sucesso.");
         } catch (IOException | InterruptedException ex) {
-            log("Error fetching data from API: " + ex.getMessage());
+            log("Erro ao buscar dados da API: " + ex.getMessage());
             startButton.setEnabled(false);
         }
     }
 
     private void handleStart() {
+        if (LoginUI.jwtToken == null || LoginUI.jwtToken.isEmpty()) {
+            log("Acesso negado: você não está autenticado.");
+            return;
+        }
+
         if (modeRealtime.isSelected()) {
             if (wsServer != null && wsServer.isRunning()) {
                 log("WebSocket server já está rodando.");
