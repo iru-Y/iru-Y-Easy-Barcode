@@ -2,13 +2,20 @@ package org.typer.easy.core;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URL;
 import java.net.http.*;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.typer.easy.ui.LoginUI;
 
 public class BarcodeTyper {
 
@@ -19,17 +26,33 @@ public class BarcodeTyper {
     }
 
     public List<Map<String, Object>> fetchBarcodesFromApi(String apiUrl) throws IOException, InterruptedException {
-        HttpClient client = HttpClient.newHttpClient();
-        HttpRequest request = HttpRequest.newBuilder(URI.create(apiUrl)).GET().build();
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpURLConnection conn = null;
+        try {
+            URL url = new URL(apiUrl);
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Authorization", "Bearer " + LoginUI.jwtToken);
+            conn.setRequestProperty("Accept", "application/json");
 
-        if (response.statusCode() != 200) {
-            throw new IOException("Error fetching data from API: Status code " + response.statusCode());
+            int status = conn.getResponseCode();
+            InputStream stream = status >= 200 && status < 300 ? conn.getInputStream() : conn.getErrorStream();
+            if (stream == null) {
+                throw new IOException("Sem resposta do servidor");
+            }
+
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+                StringBuilder response = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) response.append(line);
+
+                ObjectMapper mapper = new ObjectMapper();
+                return mapper.readValue(response.toString(), List.class);
+            }
+        } finally {
+            if (conn != null) conn.disconnect();
         }
-
-        ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(response.body(), new TypeReference<List<Map<String, Object>>>() {});
     }
+
 
     public void typeBarcodes(List<String> barcodes) throws InterruptedException {
         System.out.println("Posicione o cursor no campo de texto. Iniciando em 5 segundos...");

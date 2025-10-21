@@ -6,16 +6,15 @@ import org.typer.easy.core.TyperWebSocketServer;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.AWTException;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public class BarcodeTyperUI extends JFrame {
-
     private final JComboBox<String> fileDropdown = new JComboBox<>();
-    private final JButton startButton = new JButton("Start");
+    private final JButton startButton = new JButton("Iniciar");
     private final JTextArea logArea = new JTextArea(10, 40);
     private final JRadioButton modeBatch = new JRadioButton("Modo Lote (API)");
     private final JRadioButton modeRealtime = new JRadioButton("Tempo Real (WebSocket)");
@@ -28,16 +27,14 @@ public class BarcodeTyperUI extends JFrame {
     private static final String API_URL = "http://localhost:8080/barcode";
 
     public BarcodeTyperUI() {
-        setTitle("Easy Barcode Typer");
+        setTitle("BarcodePro - Scanner");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
         setResizable(false);
+        getContentPane().setBackground(new Color(25, 25, 25));
 
         if (LoginUI.jwtToken == null || LoginUI.jwtToken.isEmpty()) {
-            JOptionPane.showMessageDialog(this,
-                    "Você precisa fazer login primeiro!",
-                    "Erro de autenticação",
-                    JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Você precisa fazer login primeiro!", "Erro de autenticação", JOptionPane.ERROR_MESSAGE);
             dispose();
             return;
         }
@@ -49,40 +46,77 @@ public class BarcodeTyperUI extends JFrame {
             System.exit(1);
         }
 
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBackground(new Color(30, 30, 30));
+        JLabel title = new JLabel("BarcodePro - Painel de Digitação", SwingConstants.CENTER);
+        title.setFont(new Font("SansSerif", Font.BOLD, 18));
+        title.setForeground(new Color(29, 164, 99));
+        header.add(title, BorderLayout.CENTER);
+        add(header, BorderLayout.NORTH);
+
         JPanel modePanel = new JPanel(new GridLayout(1, 2));
+        modePanel.setBackground(new Color(25, 25, 25));
         ButtonGroup modeGroup = new ButtonGroup();
         modeGroup.add(modeBatch);
         modeGroup.add(modeRealtime);
         modeBatch.setSelected(true);
+        styleRadio(modeBatch);
+        styleRadio(modeRealtime);
         modePanel.add(modeBatch);
         modePanel.add(modeRealtime);
 
-        JPanel topPanel = new JPanel(new BorderLayout(5, 5));
-        topPanel.add(new JLabel("Select file:"), BorderLayout.WEST);
-        topPanel.add(fileDropdown, BorderLayout.CENTER);
-        topPanel.add(startButton, BorderLayout.EAST);
+        JPanel centerPanel = new JPanel(new BorderLayout(5, 5));
+        centerPanel.setBackground(new Color(25, 25, 25));
+        JLabel label = new JLabel("Selecione o arquivo:");
+        label.setForeground(Color.WHITE);
+        centerPanel.add(label, BorderLayout.WEST);
+        fileDropdown.setBackground(new Color(35, 35, 35));
+        fileDropdown.setForeground(Color.WHITE);
+        centerPanel.add(fileDropdown, BorderLayout.CENTER);
+        styleButton(startButton);
+        centerPanel.add(startButton, BorderLayout.EAST);
 
-        JScrollPane logScroll = new JScrollPane(logArea);
         logArea.setEditable(false);
         logArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        logArea.setLineWrap(true);
+        logArea.setBackground(new Color(35, 35, 35));
+        logArea.setForeground(Color.WHITE);
+        JScrollPane logScroll = new JScrollPane(logArea);
+        logScroll.setBorder(BorderFactory.createTitledBorder(
+                BorderFactory.createLineBorder(new Color(60, 60, 60)),
+                "Logs",
+                0, 0,
+                new Font("SansSerif", Font.PLAIN, 12),
+                Color.LIGHT_GRAY
+        ));
 
-        add(modePanel, BorderLayout.NORTH);
-        add(topPanel, BorderLayout.CENTER);
-        add(logScroll, BorderLayout.SOUTH);
+        JPanel body = new JPanel(new BorderLayout(10, 10));
+        body.setBackground(new Color(25, 25, 25));
+        body.setBorder(BorderFactory.createEmptyBorder(10, 20, 20, 20));
+        body.add(modePanel, BorderLayout.NORTH);
+        body.add(centerPanel, BorderLayout.CENTER);
+        body.add(logScroll, BorderLayout.SOUTH);
 
+        add(body, BorderLayout.CENTER);
         pack();
         setLocationRelativeTo(null);
         setVisible(true);
 
         loadApiData();
+        startButton.addActionListener(this::handleStart);
+    }
 
-        startButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                handleStart();
-            }
-        });
+    private void styleRadio(JRadioButton radio) {
+        radio.setForeground(Color.WHITE);
+        radio.setBackground(new Color(25, 25, 25));
+        radio.setFocusPainted(false);
+    }
+
+    private void styleButton(JButton button) {
+        button.setBackground(new Color(29, 164, 99));
+        button.setForeground(Color.BLACK);
+        button.setFont(new Font("SansSerif", Font.BOLD, 13));
+        button.setFocusPainted(false);
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     }
 
     private void loadApiData() {
@@ -104,7 +138,7 @@ public class BarcodeTyperUI extends JFrame {
         }
     }
 
-    private void handleStart() {
+    private void handleStart(ActionEvent e) {
         if (LoginUI.jwtToken == null || LoginUI.jwtToken.isEmpty()) {
             log("Acesso negado: você não está autenticado.");
             return;
@@ -115,7 +149,6 @@ public class BarcodeTyperUI extends JFrame {
                 log("WebSocket server já está rodando.");
                 return;
             }
-
             wsServer = new TyperWebSocketServer(WS_PORT, barcodeTyper);
             wsServer.start();
             log("WebSocket server iniciado na porta " + WS_PORT);
@@ -129,7 +162,6 @@ public class BarcodeTyperUI extends JFrame {
                 }
                 wsServer = null;
             }
-
             log("Modo Batch iniciado...");
             String selectedFile = (String) fileDropdown.getSelectedItem();
             List<String> barcodes = apiResponse.stream()
