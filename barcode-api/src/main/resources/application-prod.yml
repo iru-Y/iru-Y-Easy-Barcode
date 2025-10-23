@@ -28,3 +28,5 @@ login:
   role: ${LOGIN_ROLE}
 
 origin: ${ORIGIN}
+
+health_url: {HEALTH_URL}
