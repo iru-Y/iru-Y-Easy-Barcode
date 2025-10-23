@@ -10,11 +10,13 @@ import java.awt.AWTException;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
+import java.util.prefs.Preferences;
 
 public class BarcodeTyperUI extends JFrame {
     private final JComboBox<String> fileDropdown = new JComboBox<>();
     private final JButton startButton = new JButton("Iniciar");
+    private final JButton reloadButton = new JButton("Recarregar");
+    private final JButton logoutButton = new JButton("Logout");
     private final JTextArea logArea = new JTextArea(10, 40);
     private final JRadioButton modeBatch = new JRadioButton("Modo Lote (API)");
     private final JRadioButton modeRealtime = new JRadioButton("Tempo Real (WebSocket)");
@@ -25,6 +27,7 @@ public class BarcodeTyperUI extends JFrame {
 
     private static final int WS_PORT = 8025;
     private static final String API_URL = "http://localhost:8080/barcode";
+    private static final Preferences prefs = Preferences.userNodeForPackage(LoginUI.class);
 
     public BarcodeTyperUI() {
         setTitle("BarcodePro - Scanner");
@@ -36,6 +39,7 @@ public class BarcodeTyperUI extends JFrame {
         if (LoginUI.jwtToken == null || LoginUI.jwtToken.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Você precisa fazer login primeiro!", "Erro de autenticação", JOptionPane.ERROR_MESSAGE);
             dispose();
+            SwingUtilities.invokeLater(LoginUI::new);
             return;
         }
 
@@ -48,10 +52,17 @@ public class BarcodeTyperUI extends JFrame {
 
         JPanel header = new JPanel(new BorderLayout());
         header.setBackground(new Color(30, 30, 30));
+
         JLabel title = new JLabel("BarcodePro - Painel de Digitação", SwingConstants.CENTER);
         title.setFont(new Font("SansSerif", Font.BOLD, 18));
         title.setForeground(new Color(29, 164, 99));
+
+        styleButton(logoutButton);
+        logoutButton.setText("Logout");
+        logoutButton.addActionListener(this::handleLogout);
+
         header.add(title, BorderLayout.CENTER);
+        header.add(logoutButton, BorderLayout.EAST);
         add(header, BorderLayout.NORTH);
 
         JPanel modePanel = new JPanel(new GridLayout(1, 2));
@@ -65,16 +76,32 @@ public class BarcodeTyperUI extends JFrame {
         modePanel.add(modeBatch);
         modePanel.add(modeRealtime);
 
-        JPanel centerPanel = new JPanel(new BorderLayout(5, 5));
+        JPanel centerPanel = new JPanel();
+        centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
         centerPanel.setBackground(new Color(25, 25, 25));
+
         JLabel label = new JLabel("Selecione o arquivo:");
         label.setForeground(Color.WHITE);
-        centerPanel.add(label, BorderLayout.WEST);
+        label.setAlignmentX(Component.LEFT_ALIGNMENT);
+        centerPanel.add(label);
+
         fileDropdown.setBackground(new Color(35, 35, 35));
         fileDropdown.setForeground(Color.WHITE);
-        centerPanel.add(fileDropdown, BorderLayout.CENTER);
+        fileDropdown.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+        fileDropdown.setAlignmentX(Component.LEFT_ALIGNMENT);
+        centerPanel.add(Box.createVerticalStrut(5));
+        centerPanel.add(fileDropdown);
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+        buttonPanel.setBackground(new Color(25, 25, 25));
+        styleButton(reloadButton);
         styleButton(startButton);
-        centerPanel.add(startButton, BorderLayout.EAST);
+        buttonPanel.add(reloadButton);
+        buttonPanel.add(startButton);
+        buttonPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        centerPanel.add(Box.createVerticalStrut(10));
+        centerPanel.add(buttonPanel);
 
         logArea.setEditable(false);
         logArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
@@ -103,6 +130,10 @@ public class BarcodeTyperUI extends JFrame {
 
         loadApiData();
         startButton.addActionListener(this::handleStart);
+        reloadButton.addActionListener(e -> {
+            log("Recarregando dados da API...");
+            loadApiData();
+        });
     }
 
     private void styleRadio(JRadioButton radio) {
@@ -123,14 +154,18 @@ public class BarcodeTyperUI extends JFrame {
         try {
             apiResponse = barcodeTyper.fetchBarcodesFromApi(API_URL);
             fileDropdown.removeAllItems();
+
             if (apiResponse.isEmpty()) {
                 log("Nenhum arquivo retornado da API.");
                 startButton.setEnabled(false);
                 return;
             }
+
             for (Map<String, Object> item : apiResponse) {
                 fileDropdown.addItem((String) item.get("filename"));
             }
+
+            startButton.setEnabled(true);
             log("Dados carregados com sucesso.");
         } catch (IOException | InterruptedException ex) {
             log("Erro ao buscar dados da API: " + ex.getMessage());
@@ -185,6 +220,32 @@ public class BarcodeTyperUI extends JFrame {
                     log("Erro durante a digitação: " + ex.getMessage());
                 }
             }).start();
+        }
+    }
+
+    private void handleLogout(ActionEvent e) {
+        int confirm = JOptionPane.showConfirmDialog(
+                this,
+                "Deseja realmente sair?",
+                "Confirmação de Logout",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+        );
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            if (wsServer != null) {
+                try {
+                    wsServer.stop();
+                } catch (InterruptedException ignored) {}
+            }
+
+            LoginUI.jwtToken = null;
+            LoginUI.refreshToken = null;
+            prefs.remove("accessToken");
+            prefs.remove("refreshToken");
+
+            dispose();
+            SwingUtilities.invokeLater(LoginUI::new);
         }
     }
 
