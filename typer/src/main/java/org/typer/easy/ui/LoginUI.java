@@ -15,6 +15,7 @@ import java.util.prefs.Preferences;
 public class LoginUI extends JFrame {
     private final JTextField usernameField = new JTextField(20);
     private final JPasswordField passwordField = new JPasswordField(20);
+    private final JCheckBox savePasswordCheck = new JCheckBox("Salvar senha");
     private final JButton loginButton = new JButton("Entrar");
     private final JLabel statusLabel = new JLabel(" ");
 
@@ -51,6 +52,15 @@ public class LoginUI extends JFrame {
         mainPanel.add(createLabeledField("E-mail", usernameField));
         mainPanel.add(Box.createVerticalStrut(10));
         mainPanel.add(createLabeledField("Senha", passwordField));
+        mainPanel.add(Box.createVerticalStrut(10));
+
+        // Checkbox para salvar senha
+        savePasswordCheck.setForeground(Color.LIGHT_GRAY);
+        savePasswordCheck.setBackground(new Color(25, 25, 25));
+        savePasswordCheck.setAlignmentX(Component.CENTER_ALIGNMENT);
+        boolean savePass = prefs.getBoolean("savePassword", false);
+        savePasswordCheck.setSelected(savePass);
+        mainPanel.add(savePasswordCheck);
         mainPanel.add(Box.createVerticalStrut(25));
 
         loginButton.setBackground(new Color(29, 164, 99));
@@ -73,6 +83,8 @@ public class LoginUI extends JFrame {
         setLocationRelativeTo(null);
         setVisible(true);
 
+        // Preenche campos com informações salvas
+        loadSavedCredentials();
         checkSavedToken();
     }
 
@@ -133,8 +145,19 @@ public class LoginUI extends JFrame {
                     jwtToken = jsonNode.get("accessToken").asText();
                     refreshToken = jsonNode.get("refreshToken").asText();
 
+                    prefs.put("email", email); // sempre salva último e-mail
                     prefs.put("accessToken", jwtToken);
                     prefs.put("refreshToken", refreshToken);
+
+                    // Salvar senha se checkbox marcado
+                    if (savePasswordCheck.isSelected()) {
+                        prefs.put("password", password);
+                        prefs.putBoolean("savePassword", true);
+                    } else {
+                        prefs.remove("password");
+                        prefs.putBoolean("savePassword", false);
+                    }
+
                     statusLabel.setText("Login bem sucedido!");
                     SwingUtilities.invokeLater(() -> {
                         dispose();
@@ -149,6 +172,18 @@ public class LoginUI extends JFrame {
             statusLabel.setText("Erro: " + ex.getMessage());
         } finally {
             if (conn != null) conn.disconnect();
+        }
+    }
+
+    private void loadSavedCredentials() {
+        // Preenche e-mail sempre
+        String savedEmail = prefs.get("email", "");
+        usernameField.setText(savedEmail);
+
+        // Preenche senha apenas se salvar estava marcado
+        if (prefs.getBoolean("savePassword", false)) {
+            String savedPass = prefs.get("password", "");
+            passwordField.setText(savedPass);
         }
     }
 
