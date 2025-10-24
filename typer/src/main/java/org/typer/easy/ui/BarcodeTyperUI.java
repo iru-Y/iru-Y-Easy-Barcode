@@ -1,16 +1,24 @@
 package org.typer.easy.ui;
 
 import org.typer.easy.core.BarcodeTyper;
-import org.typer.easy.core.TyperWebSocketServer;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.AWTException;
+import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.prefs.Preferences;
+
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
 
 public class BarcodeTyperUI extends JFrame {
     private final JComboBox<String> fileDropdown = new JComboBox<>();
@@ -18,14 +26,14 @@ public class BarcodeTyperUI extends JFrame {
     private final JButton reloadButton = new JButton("Recarregar");
     private final JButton logoutButton = new JButton("Logout");
     private final JTextArea logArea = new JTextArea(10, 40);
-    private final JRadioButton modeBatch = new JRadioButton("Modo Lote (API)");
-    private final JRadioButton modeRealtime = new JRadioButton("Tempo Real (WebSocket)");
+
+    // export UI
+    private final JComboBox<String> exportFormat = new JComboBox<>(new String[]{"PDF", "TXT", "CSV"});
+    private final JButton exportButton = new JButton("Baixar lista");
 
     private List<Map<String, Object>> apiResponse;
     private BarcodeTyper barcodeTyper;
-    private TyperWebSocketServer wsServer;
 
-    private static final int WS_PORT = 8025;
     private static final String API_URL = "http://localhost:8080/barcode";
     private static final Preferences prefs = Preferences.userNodeForPackage(LoginUI.class);
 
@@ -65,17 +73,6 @@ public class BarcodeTyperUI extends JFrame {
         header.add(logoutButton, BorderLayout.EAST);
         add(header, BorderLayout.NORTH);
 
-        JPanel modePanel = new JPanel(new GridLayout(1, 2));
-        modePanel.setBackground(new Color(25, 25, 25));
-        ButtonGroup modeGroup = new ButtonGroup();
-        modeGroup.add(modeBatch);
-        modeGroup.add(modeRealtime);
-        modeBatch.setSelected(true);
-        styleRadio(modeBatch);
-        styleRadio(modeRealtime);
-        modePanel.add(modeBatch);
-        modePanel.add(modeRealtime);
-
         JPanel centerPanel = new JPanel();
         centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
         centerPanel.setBackground(new Color(25, 25, 25));
@@ -87,7 +84,7 @@ public class BarcodeTyperUI extends JFrame {
 
         fileDropdown.setBackground(new Color(35, 35, 35));
         fileDropdown.setForeground(Color.WHITE);
-        fileDropdown.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+        fileDropdown.setMaximumSize(new Dimension(Integer.MAX_VALUE, 15));
         fileDropdown.setAlignmentX(Component.LEFT_ALIGNMENT);
         centerPanel.add(Box.createVerticalStrut(5));
         centerPanel.add(fileDropdown);
@@ -96,8 +93,11 @@ public class BarcodeTyperUI extends JFrame {
         buttonPanel.setBackground(new Color(25, 25, 25));
         styleButton(reloadButton);
         styleButton(startButton);
+        styleButton(exportButton);
         buttonPanel.add(reloadButton);
         buttonPanel.add(startButton);
+        buttonPanel.add(exportFormat);
+        buttonPanel.add(exportButton);
         buttonPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         centerPanel.add(Box.createVerticalStrut(10));
@@ -119,7 +119,6 @@ public class BarcodeTyperUI extends JFrame {
         JPanel body = new JPanel(new BorderLayout(10, 10));
         body.setBackground(new Color(25, 25, 25));
         body.setBorder(BorderFactory.createEmptyBorder(10, 20, 20, 20));
-        body.add(modePanel, BorderLayout.NORTH);
         body.add(centerPanel, BorderLayout.CENTER);
         body.add(logScroll, BorderLayout.SOUTH);
 
@@ -134,12 +133,16 @@ public class BarcodeTyperUI extends JFrame {
             log("Recarregando dados da API...");
             loadApiData();
         });
-    }
 
-    private void styleRadio(JRadioButton radio) {
-        radio.setForeground(Color.WHITE);
-        radio.setBackground(new Color(25, 25, 25));
-        radio.setFocusPainted(false);
+        exportButton.addActionListener(e -> {
+            String format = (String) exportFormat.getSelectedItem();
+            try {
+                exportSelectedList(format);
+            } catch (IOException ex) {
+                log("Erro ao exportar: " + ex.getMessage());
+                JOptionPane.showMessageDialog(this, "Erro ao exportar: " + ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
+            }
+        });
     }
 
     private void styleButton(JButton button) {
@@ -155,9 +158,10 @@ public class BarcodeTyperUI extends JFrame {
             apiResponse = barcodeTyper.fetchBarcodesFromApi(API_URL);
             fileDropdown.removeAllItems();
 
-            if (apiResponse.isEmpty()) {
+            if (apiResponse == null || apiResponse.isEmpty()) {
                 log("Nenhum arquivo retornado da API.");
                 startButton.setEnabled(false);
+                exportButton.setEnabled(false);
                 return;
             }
 
@@ -166,10 +170,12 @@ public class BarcodeTyperUI extends JFrame {
             }
 
             startButton.setEnabled(true);
+            exportButton.setEnabled(true);
             log("Dados carregados com sucesso.");
         } catch (IOException | InterruptedException ex) {
             log("Erro ao buscar dados da API: " + ex.getMessage());
             startButton.setEnabled(false);
+            exportButton.setEnabled(false);
         }
     }
 
@@ -179,48 +185,29 @@ public class BarcodeTyperUI extends JFrame {
             return;
         }
 
-        if (modeRealtime.isSelected()) {
-            if (wsServer != null && wsServer.isRunning()) {
-                log("WebSocket server já está rodando.");
-                return;
-            }
-            wsServer = new TyperWebSocketServer(WS_PORT, barcodeTyper);
-            wsServer.start();
-            log("WebSocket server iniciado na porta " + WS_PORT);
-        } else {
-            if (wsServer != null) {
-                try {
-                    wsServer.stop();
-                    log("WebSocket server parado.");
-                } catch (InterruptedException ex) {
-                    log("Erro ao parar WebSocket server: " + ex.getMessage());
-                }
-                wsServer = null;
-            }
-            log("Modo Batch iniciado...");
-            String selectedFile = (String) fileDropdown.getSelectedItem();
-            List<String> barcodes = apiResponse.stream()
-                    .filter(item -> selectedFile.equals(item.get("filename")))
-                    .findFirst()
-                    .map(item -> (List<String>) item.get("barcodes"))
-                    .orElse(null);
+        log("Modo Batch iniciado...");
+        String selectedFile = (String) fileDropdown.getSelectedItem();
+        List<String> barcodes = apiResponse.stream()
+                .filter(item -> selectedFile.equals(item.get("filename")))
+                .findFirst()
+                .map(item -> (List<String>) item.get("barcodes"))
+                .orElse(null);
 
-            if (barcodes == null || barcodes.isEmpty()) {
-                log("Nenhum barcode encontrado para o arquivo selecionado.");
-                return;
-            }
-
-            new Thread(() -> {
-                try {
-                    log("Começando a digitar em 5 segundos...");
-                    Thread.sleep(5000);
-                    barcodeTyper.typeBarcodes(barcodes);
-                    log("Digitação concluída.");
-                } catch (InterruptedException ex) {
-                    log("Erro durante a digitação: " + ex.getMessage());
-                }
-            }).start();
+        if (barcodes == null || barcodes.isEmpty()) {
+            log("Nenhum barcode encontrado para o arquivo selecionado.");
+            return;
         }
+
+        new Thread(() -> {
+            try {
+                log("Começando a digitar em 5 segundos...");
+                Thread.sleep(5000);
+                barcodeTyper.typeBarcodes(barcodes);
+                log("Digitação concluída.");
+            } catch (InterruptedException ex) {
+                log("Erro durante a digitação: " + ex.getMessage());
+            }
+        }).start();
     }
 
     private void handleLogout(ActionEvent e) {
@@ -233,12 +220,6 @@ public class BarcodeTyperUI extends JFrame {
         );
 
         if (confirm == JOptionPane.YES_OPTION) {
-            if (wsServer != null) {
-                try {
-                    wsServer.stop();
-                } catch (InterruptedException ignored) {}
-            }
-
             LoginUI.jwtToken = null;
             LoginUI.refreshToken = null;
             prefs.remove("accessToken");
@@ -247,6 +228,78 @@ public class BarcodeTyperUI extends JFrame {
             dispose();
             SwingUtilities.invokeLater(LoginUI::new);
         }
+    }
+
+    private void exportSelectedList(String format) throws IOException {
+        String selectedFile = (String) fileDropdown.getSelectedItem();
+        if (selectedFile == null) {
+            log("Nenhum arquivo selecionado para exportar.");
+            JOptionPane.showMessageDialog(this, "Selecione um arquivo antes de exportar.", "Aviso", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        List<String> barcodes = apiResponse.stream()
+                .filter(item -> selectedFile.equals(item.get("filename")))
+                .findFirst()
+                .map(item -> (List<String>) item.get("barcodes"))
+                .orElse(null);
+
+        if (barcodes == null || barcodes.isEmpty()) {
+            log("Nenhum barcode encontrado para o arquivo selecionado.");
+            JOptionPane.showMessageDialog(this, "Nenhum barcode encontrado para o arquivo selecionado.", "Aviso", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String ext = format.toLowerCase();
+        JFileChooser chooser = new JFileChooser();
+        chooser.setSelectedFile(new File(selectedFile + "." + ext));
+        int res = chooser.showSaveDialog(this);
+        if (res != JFileChooser.APPROVE_OPTION) return;
+
+        Path out = chooser.getSelectedFile().toPath();
+
+        switch (format) {
+            case "TXT":
+                Files.write(out, barcodes, StandardCharsets.UTF_8);
+                break;
+            case "CSV":
+                // simple CSV with header
+                List<String> lines = new java.util.ArrayList<>();
+                lines.add("barcode");
+                for (String b : barcodes) lines.add(b);
+                Files.write(out, lines, StandardCharsets.UTF_8);
+                break;
+            case "PDF":
+                // Uses Apache PDFBox
+                try (PDDocument doc = new PDDocument()) {
+                    PDPage page = new PDPage();
+                    doc.addPage(page);
+
+                    try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
+                        cs.beginText();
+                        cs.setFont(PDType1Font.HELVETICA, 12);
+                        // start near top-left
+                        float margin = 50;
+                        float y = 750;
+                        cs.newLineAtOffset(margin, y);
+
+                        for (String b : barcodes) {
+                            cs.showText(b);
+                            cs.newLineAtOffset(0, -15);
+                        }
+
+                        cs.endText();
+                    }
+
+                    doc.save(out.toFile());
+                }
+                break;
+            default:
+                throw new IOException("Formato desconhecido: " + format);
+        }
+
+        log("Arquivo exportado: " + out.toAbsolutePath());
+        JOptionPane.showMessageDialog(this, "Exportado com sucesso: " + out.toAbsolutePath(), "OK", JOptionPane.INFORMATION_MESSAGE);
     }
 
     private void log(String message) {
