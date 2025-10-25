@@ -41,7 +41,7 @@ public class BarcodeTyperUI extends JFrame {
 
     public BarcodeTyperUI() {
         setTitle("BarcodePro - Scanner");
-        setDefaultCloseOperation(HIDE_ON_CLOSE); // <== importante para tray
+        setDefaultCloseOperation(HIDE_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
         setResizable(true);
         setMinimumSize(new Dimension(800, 600));
@@ -61,7 +61,7 @@ public class BarcodeTyperUI extends JFrame {
             System.exit(1);
         }
 
-        initTray(); // inicializa o tray
+        initTray();
 
         JPanel header = new JPanel(new BorderLayout());
         header.setBackground(new Color(30, 30, 30));
@@ -118,7 +118,6 @@ public class BarcodeTyperUI extends JFrame {
         setLocationRelativeTo(null);
         setVisible(true);
 
-        // Listener global de teclado para ESC e Ctrl+C
         KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(e -> {
             if (e.getID() == KeyEvent.KEY_PRESSED) {
                 if (e.getKeyCode() == KeyEvent.VK_ESCAPE ||
@@ -149,7 +148,6 @@ public class BarcodeTyperUI extends JFrame {
             }
         });
 
-        // Ao fechar janela, envia para tray
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -163,7 +161,7 @@ public class BarcodeTyperUI extends JFrame {
         if (!SystemTray.isSupported()) return;
 
         SystemTray tray = SystemTray.getSystemTray();
-        Image image = Toolkit.getDefaultToolkit().getImage(getClass().getResource("/icon.png")); // ícone do tray
+        Image image = Toolkit.getDefaultToolkit().getImage(getClass().getResource("/icon.png"));
         PopupMenu popup = new PopupMenu();
 
         MenuItem openItem = new MenuItem("Abrir");
@@ -182,7 +180,6 @@ public class BarcodeTyperUI extends JFrame {
         trayIcon.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                // duplo clique abre a janela
                 if (e.getClickCount() == 2) SwingUtilities.invokeLater(() -> setVisible(true));
             }
         });
@@ -258,7 +255,7 @@ public class BarcodeTyperUI extends JFrame {
 
         if (confirm != JOptionPane.YES_OPTION) return;
 
-        stopTyping.set(false); // reset antes de iniciar
+        stopTyping.set(false);
 
         log("Modo Batch iniciado...");
         List<String> barcodes = apiResponse.stream()
