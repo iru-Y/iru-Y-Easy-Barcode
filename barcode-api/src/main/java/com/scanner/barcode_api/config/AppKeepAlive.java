@@ -15,7 +15,7 @@ public class AppKeepAlive {
 
     private static final Logger log = LoggerFactory.getLogger(AppKeepAlive.class);
 
-    @Value("health_url")
+    @Value("${health_url}")
     private String HEALTH_URL;
 
 
